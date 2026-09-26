@@ -2,6 +2,9 @@ name = "whatsapp-durable-objects"
 main = "src/index.js"
 compatibility_date = "2026-01-01"
 
+[observability]
+enabled = true
+
 # Bindings tell Cloudflare to link the Durable Object class to your Worker
 [[durable_objects.bindings]]
 name = "CHAT_ROOM"
