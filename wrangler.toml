@@ -1,0 +1,13 @@
+name = "whatsapp-durable-objects"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Bindings tell Cloudflare to link the Durable Object class to your Worker
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+
+# Migrations instruct Cloudflare to allocate Durable Object storage
+[[migrations]]
+tag = "v1"
+new_classes = ["ChatRoom"]
