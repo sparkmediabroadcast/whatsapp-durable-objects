@@ -4,7 +4,8 @@ export default {
 
     // Serve WebSocket connection requests
     if (url.pathname === "/websocket") {
-      const roomName = url.searchParams.get("room") || "default";
+      // Always guarantee both iPhone and Mac target 'global-room'
+      const roomName = url.searchParams.get("room") || "global-room";
       const id = env.CHAT_ROOM.idFromName(roomName);
       const roomObject = env.CHAT_ROOM.get(id);
       return roomObject.fetch(request);
@@ -40,14 +41,13 @@ export class ChatRoom {
 
   // Called automatically when any client sends a message over WebSocket
   async webSocketMessage(ws, message) {
-    // Broadcast incoming message to ALL OTHER connected clients in this room
-    for (const client of this.ctx.getWebSockets()) {
-      if (client !== ws) {
-        try {
-          client.send(message);
-        } catch (e) {
-          client.close(1011, "WebSocket send error");
-        }
+    // Broadcast incoming message to ALL connected clients in this room
+    const sockets = this.ctx.getWebSockets();
+    for (const client of sockets) {
+      try {
+        client.send(message);
+      } catch (e) {
+        client.close(1011, "WebSocket send error");
       }
     }
   }
@@ -57,7 +57,7 @@ export class ChatRoom {
   }
 
   async webSocketError(ws, error) {
-    ws.close(1011, "WebSocket encountered an error");
+    ws.close(1011, "WebSocket error");
   }
 }
 
@@ -106,6 +106,7 @@ function getHTML() {
   </div>
 
   <script>
+    const clientId = Math.random().toString(36).substring(7);
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const ws = new WebSocket(\`\${wsProtocol}//\${location.host}/websocket?room=global-room\`);
     const status = document.getElementById('status');
@@ -118,7 +119,9 @@ function getHTML() {
       try {
         const data = JSON.parse(e.data);
         if (data && data.text) {
-          appendMessage(data.text, 'received');
+          // Render as 'sent' if this client sent it, or 'received' if another client did
+          const msgType = data.senderId === clientId ? 'sent' : 'received';
+          appendMessage(data.text, msgType);
         }
       } catch (err) {
         console.error("Error parsing message frame:", err);
@@ -131,8 +134,7 @@ function getHTML() {
       if (!text) return;
 
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ text }));
-        appendMessage(text, 'sent');
+        ws.send(JSON.stringify({ text, senderId: clientId }));
         input.value = '';
       } else {
         alert("Socket disconnected. Please refresh.");
